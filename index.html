@@ -613,11 +613,27 @@ function loadStorage() {
 }
 
 // ─── INIT ─────────────────────────────────────────────────
-loadStorage();
-buildCatChips();
-updateDateInput();
-renderHome();
-renderHistory();
+function init() {
+  loadStorage();
+  buildCatChips();
+  updateDateInput();
+  renderHome();
+  renderHistory();
+
+  // Event listeners — só depois do DOM estar pronto
+  document.getElementById('add-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('add-modal')) closeModal();
+  });
+  document.getElementById('detail-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('detail-modal')) closeDetail();
+  });
+  document.getElementById('desc-input').addEventListener('input', onDescInput);
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 
 function buildCatChips() {
   const wrap = document.getElementById('cat-chips');
@@ -778,9 +794,7 @@ function closeModal() {
   document.getElementById('add-modal').classList.remove('open');
 }
 
-document.getElementById('add-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('add-modal')) closeModal();
-});
+// event listener moved to init()
 
 function setType(type) {
   currentType = type;
@@ -809,7 +823,7 @@ function selectCat(el, catId) {
 }
 
 // ─── DESCRIPTION → CATEGORY INFERENCE ────────────────────
-document.getElementById('desc-input').addEventListener('input', function() {
+function onDescInput() {
   clearTimeout(aiDebounce);
   const val = this.value.trim().toLowerCase();
   if (!val) { document.getElementById('cat-suggestion').classList.remove('visible'); return; }
@@ -828,7 +842,7 @@ document.getElementById('desc-input').addEventListener('input', function() {
   if (val.length >= 3) {
     aiDebounce = setTimeout(() => inferCategoryAI(val), 800);
   }
-});
+}
 
 function showSuggestion(catId, source) {
   const cat = CATEGORIES.find(c => c.id === catId);
@@ -856,12 +870,7 @@ async function inferCategoryAI(description) {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-  'Content-Type': 'application/json',
-  'x-api-key': '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',
-  'anthropic-version': '2023-06-01',
-  'anthropic-dangerous-direct-browser-access': 'true',
-},'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 100,
@@ -926,7 +935,7 @@ function saveTransaction() {
   }
 
   const tx = {
-    id: crypto.randomUUID(),
+    id: genId(),
     date: date || new Date().toISOString().split('T')[0],
     type: currentType,
     category: selectedCategory,
@@ -980,9 +989,7 @@ function closeDetail() {
   document.getElementById('detail-modal').classList.remove('open');
 }
 
-document.getElementById('detail-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('detail-modal')) closeDetail();
-});
+// detail modal listener moved to init()
 
 function deleteTransaction(id) {
   transactions = transactions.filter(t => t.id !== id);
@@ -994,6 +1001,13 @@ function deleteTransaction(id) {
 }
 
 // ─── UTILS ────────────────────────────────────────────────
+function genId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
 function fmt(val) {
   return 'R$ ' + (val || 0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
